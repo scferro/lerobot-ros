@@ -13,12 +13,10 @@
 # limitations under the License.
 
 [project.urls]
-homepage = "https://github.com/huggingface/lerobot"
-issues = "https://github.com/huggingface/lerobot/issues"
-discord = "https://discord.gg/s3KuuzsPFb"
+homepage = "https://github.com/ycheng517/lerobot-ros"
 
 [project]
-name = "lerobot-ros2"
+name = "lerobot-ros"
 version = "0.1.0"
 description = "🤗 A lightweight ROS 2 wrapper for lerobot"
 authors = [
