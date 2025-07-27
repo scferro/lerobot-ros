@@ -1,6 +1,8 @@
 # LeRobot ROS
 
-This package provides a simple [ROS 2](https://github.com/ros2) integration for [LeRobot](https://github.com/huggingface/lerobot), allowing lerobot to be used with robots running on [ros2_control](https://control.ros.org/rolling/index.html) or [MoveIt 2](https://moveit.picknik.ai/main/index.html).
+This repository provides a generic ROS 2 interface for the [LeRobot](https://github.com/huggingface/lerobot) framework. It acts as a lightweight wrapper to connect any `ros2_control` or `MoveIt2` compatible robot with the `lerobot` ecosystem. This enables `lerobot` to be used on a wide variety of real-world robots running on ROS 2.
+
+A gamepad teleoperator for 6-DoF end-effector control is also provided.
 
 **Supported control modes:**
 

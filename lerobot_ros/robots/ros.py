@@ -136,9 +136,6 @@ class ROS2Robot(Robot):
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
         if self.config.action_type == ActionType.CARTESIAN_VELOCITY:
-            if self.config.action_from_keyboard:
-                action = self.keyboard_to_velocity_action(action)
-
             if self.config.max_relative_target is not None:
                 # We don't have the current velocity of the arm, so set it to 0.0
                 # Effectively the goal velocity gets clipped by max_relative_target
@@ -157,9 +154,6 @@ class ROS2Robot(Robot):
             )
             self.ros2_interface.servo(linear=linear_vel, angular=angular_vel)
         elif self.config.action_type == ActionType.JOINT_POSITION:
-            if self.config.action_from_keyboard:
-                action = self.keyboard_to_joint_position_action(action)
-
             if self.config.max_relative_target is not None:
                 goal_present_pos = {}
                 joint_state = self.ros2_interface.joint_state
@@ -177,92 +171,6 @@ class ROS2Robot(Robot):
         gripper_pos = action["gripper.pos"]
         self.ros2_interface.send_gripper_command(gripper_pos)
         return action
-
-    def keyboard_to_joint_position_action(self, pressed_keys: dict[str, Any]) -> dict[str, float]:
-        """Convert pressed keys to joint position action commands for teleop.
-        hardcoded for a 6-DOF arm with a gripper.
-        """
-        action = {f"{joint}.pos": 0.5 for joint in self.config.ros2_interface.arm_joint_names}
-        if "q" in pressed_keys:
-            action["joint_1.pos"] += 0.2
-        if "a" in pressed_keys:
-            action["joint_1.pos"] -= 0.2
-        if "w" in pressed_keys:
-            action["joint_2.pos"] += 0.2
-        if "s" in pressed_keys:
-            action["joint_2.pos"] -= 0.2
-        if "e" in pressed_keys:
-            action["joint_3.pos"] += 0.2
-        if "d" in pressed_keys:
-            action["joint_3.pos"] -= 0.2
-        if "r" in pressed_keys:
-            action["joint_4.pos"] += 0.2
-        if "f" in pressed_keys:
-            action["joint_4.pos"] -= 0.2
-        if "t" in pressed_keys:
-            action["joint_5.pos"] += 0.2
-        if "g" in pressed_keys:
-            action["joint_5.pos"] -= 0.2
-        if "y" in pressed_keys:
-            action["joint_6.pos"] += 0.2
-        if "h" in pressed_keys:
-            action["joint_6.pos"] -= 0.2
-
-        gripper_pos = 0.0
-        if "space" in pressed_keys:
-            gripper_pos = 1.0
-
-        action["gripper.pos"] = gripper_pos
-        return action
-
-    def keyboard_to_velocity_action(self, pressed_keys: dict[str, Any]) -> dict[str, float]:
-        """Convert pressed keys to velocity action commands for teleop."""
-        lin_vel_x = 0.0
-        if "a" in pressed_keys:
-            lin_vel_x += 1.0
-        if "d" in pressed_keys:
-            lin_vel_x -= 1.0
-        lin_vel_y = 0.0
-        if "w" in pressed_keys:
-            lin_vel_y -= 1.0
-        if "s" in pressed_keys:
-            lin_vel_y += 1.0
-        lin_vel_z = 0.0
-        if "n" in pressed_keys:
-            lin_vel_z -= 1.0
-        if "m" in pressed_keys:
-            lin_vel_z += 1.0
-
-        ang_vel_y = 0.0
-        if "j" in pressed_keys:
-            ang_vel_y -= 1.0
-        if "l" in pressed_keys:
-            ang_vel_y += 1.0
-
-        ang_vel_x = 0.0
-        if "i" in pressed_keys:
-            ang_vel_x -= 1.0
-        if "k" in pressed_keys:
-            ang_vel_x += 1.0
-        ang_vel_z = 0.0
-        if "u" in pressed_keys:
-            ang_vel_z += 1.0
-        if "o" in pressed_keys:
-            ang_vel_z -= 1.0
-
-        gripper_pos = 0.0
-        if "space" in pressed_keys:
-            gripper_pos = 1.0
-
-        return {
-            "linear_x.vel": lin_vel_x,
-            "linear_y.vel": lin_vel_y,
-            "linear_z.vel": lin_vel_z,
-            "angular_x.vel": ang_vel_x,
-            "angular_y.vel": ang_vel_y,
-            "angular_z.vel": ang_vel_z,
-            "gripper.pos": gripper_pos,
-        }
 
     def disconnect(self):
         if not self.is_connected:

@@ -74,8 +74,6 @@ class ROS2Config(RobotConfig):
     # ROS2 interface configuration
     ros2_interface: ROS2InterfaceConfig = field(default_factory=ROS2InterfaceConfig)
 
-    action_from_keyboard: bool = False
-
 
 @RobotConfig.register_subclass("annin_ar4_mk1")
 @dataclass
@@ -88,11 +86,31 @@ class AnninAR4Config(ROS2Config):
 
     ros2_interface: ROS2InterfaceConfig = field(
         default_factory=lambda: ROS2InterfaceConfig(
-            base_link="base_link",
             gripper_joint_name="gripper_jaw1_joint",
+            base_link="base_link",
             min_joint_positions=[-2.9671, -0.7330, -1.5533, -2.8798, -1.8326, -2.7053],
             max_joint_positions=[2.9671, 1.5708, 0.9076, 2.8798, 1.8326, 2.7053],
             gripper_open_position=0.014,
+            gripper_close_position=0.0,
+        ),
+    )
+
+
+@RobotConfig.register_subclass("so101_ros")
+@dataclass
+class SO101ROSConfig(ROS2Config):
+    """Configuration for the ROS 2 version of SO101: https://github.com/Pavankv92/lerobot_ws."""
+
+    action_type: ActionType = ActionType.CARTESIAN_VELOCITY
+
+    ros2_interface: ROS2InterfaceConfig = field(
+        default_factory=lambda: ROS2InterfaceConfig(
+            arm_joint_names=["1", "2", "3", "4", "5"],
+            gripper_joint_name="6",
+            base_link="base",
+            min_joint_positions=[-1.91986, -1.74533, -1.74533, -1.65806, -2.79253],
+            max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
+            gripper_open_position=1.74533,
             gripper_close_position=0.0,
         ),
     )
