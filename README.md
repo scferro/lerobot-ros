@@ -23,11 +23,21 @@ Before getting started, ensure you have the following installed:
 
 ### Robot Setup
 
-For joint position control, the robot should be configured with the following:
+For joint position control, the robot can be configured with either of the following setups:
+
+**Option 1: JointGroupPositionController (default)**
 
 - `position_controllers/JointGroupPositionController` for the robot arm joints
 - `position_controllers/GripperActionController` for the gripper
 - `joint_state_broadcaster/JointStateBroadcaster` for joint state feedback
+
+**Option 2: JointTrajectoryController**
+
+- `joint_trajectory_controller/JointTrajectoryController` for the robot arm joints
+- `position_controllers/GripperActionController` for the gripper
+- `joint_state_broadcaster/JointStateBroadcaster` for joint state feedback
+
+The controller type is configured via the `arm_use_trajectory` parameter in the `ROS2InterfaceConfig`.
 
 For end-effector control, the robot should be configured with the same gripper and joint state feedback as above, and additionally:
 

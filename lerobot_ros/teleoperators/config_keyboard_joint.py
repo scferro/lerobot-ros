@@ -11,4 +11,4 @@ class KeyboardJointConfig(KeyboardTeleopConfig):
     gripper_action_key: str = "gripper.pos"
 
     # The amount by which a joint action changes when a key is pressed.
-    action_increment: float = 0.1
+    action_increment: float = 0.02

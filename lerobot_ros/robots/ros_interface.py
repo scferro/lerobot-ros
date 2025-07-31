@@ -35,13 +35,27 @@ logger = logging.getLogger(__name__)
 
 
 class ROS2Interface:
-    """Class to interface with a MoveIt2 manipulator."""
+    """Class to interface with a MoveIt2 manipulator.
+
+    This class supports both JointGroupPositionController and JointTrajectoryController
+    for arm control, depending on the configuration:
+
+    - JointGroupPositionController (arm_use_trajectory=False):
+      Publishes Float64MultiArray messages to 'position_controller/commands'
+
+    - JointTrajectoryController (arm_use_trajectory=True):
+      Publishes JointTrajectory messages to '/arm_controller/joint_trajectory'
+
+    The gripper control also supports both trajectory and action-based control
+    via the gripper_use_trajectory configuration option.
+    """
 
     def __init__(self, config: ROS2InterfaceConfig, action_type: ActionType):
         self.config = config
         self.action_type = action_type
         self.robot_node: Node | None = None
         self.pos_cmd_pub: Publisher | None = None
+        self.traj_cmd_pub: Publisher | None = None
         self.gripper_action_client: ActionClient | None = None
         self.gripper_cmd_pub: Publisher | None = None
         self.executor: Executor | None = None
@@ -56,9 +70,14 @@ class ROS2Interface:
 
         self.robot_node = Node("moveit2_interface_node", namespace=self.config.namespace)
         if self.action_type == ActionType.JOINT_POSITION:
-            self.pos_cmd_pub = self.robot_node.create_publisher(
-                Float64MultiArray, "position_controller/commands", 10
-            )
+            if self.config.arm_use_trajectory:
+                self.traj_cmd_pub = self.robot_node.create_publisher(
+                    JointTrajectory, "/arm_controller/joint_trajectory", 10
+                )
+            else:
+                self.pos_cmd_pub = self.robot_node.create_publisher(
+                    Float64MultiArray, "position_controller/commands", 10
+                )
         elif self.action_type == ActionType.CARTESIAN_VELOCITY:
             self.moveit2_servo = MoveIt2Servo(
                 node=self.robot_node,
@@ -100,7 +119,7 @@ class ROS2Interface:
         Send a command to the robot's joints.
         Args:
             joint_positions (list[float]): The target positions for the joints.
-            normalize (bool): Whether to unnormalize the joint positions based on the robot's configuration.
+            unnormalize (bool): Whether to unnormalize the joint positions based on the robot's configuration.
         """
         if not self.robot_node:
             raise DeviceNotConnectedError("ROS2Interface is not connected. You need to call `connect()`.")
@@ -124,11 +143,22 @@ class ROS2Interface:
             raise ValueError(
                 f"Expected {len(self.config.arm_joint_names)} joint positions, but got {len(joint_positions)}."
             )
-        msg = Float64MultiArray()
-        msg.data = joint_positions
-        if self.pos_cmd_pub is None:
-            raise DeviceNotConnectedError("Position command publisher is not initialized.")
-        self.pos_cmd_pub.publish(msg)
+
+        if self.config.arm_use_trajectory:
+            if self.traj_cmd_pub is None:
+                raise DeviceNotConnectedError("Trajectory command publisher is not initialized.")
+            msg = JointTrajectory()
+            msg.joint_names = self.config.arm_joint_names
+            point = JointTrajectoryPoint()
+            point.positions = joint_positions
+            msg.points = [point]
+            self.traj_cmd_pub.publish(msg)
+        else:
+            if self.pos_cmd_pub is None:
+                raise DeviceNotConnectedError("Position command publisher is not initialized.")
+            msg = Float64MultiArray()
+            msg.data = joint_positions
+            self.pos_cmd_pub.publish(msg)
 
     def servo(self, linear, angular, normalize: bool = True) -> None:
         if not self.moveit2_servo:
@@ -222,6 +252,12 @@ class ROS2Interface:
         if self.joint_state_sub:
             self.joint_state_sub.destroy()
             self.joint_state_sub = None
+        if self.pos_cmd_pub:
+            self.pos_cmd_pub.destroy()
+            self.pos_cmd_pub = None
+        if self.traj_cmd_pub:
+            self.traj_cmd_pub.destroy()
+            self.traj_cmd_pub = None
         if self.gripper_action_client:
             self.gripper_action_client.destroy()
             self.gripper_action_client = None

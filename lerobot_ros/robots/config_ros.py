@@ -60,6 +60,9 @@ class ROS2InterfaceConfig:
     # Gripper controller type
     gripper_use_trajectory: bool = False
 
+    # Arm controller type
+    arm_use_trajectory: bool = False
+
 
 @dataclass
 class ROS2Config(RobotConfig):
@@ -116,5 +119,6 @@ class SO101ROSConfig(ROS2Config):
             gripper_open_position=1.74533,
             gripper_close_position=0.0,
             gripper_use_trajectory=True,
+            arm_use_trajectory=True,
         ),
     )
