@@ -57,6 +57,9 @@ class ROS2InterfaceConfig:
     gripper_open_position: float = 0.0
     gripper_close_position: float = 1.0
 
+    # Gripper controller type
+    gripper_use_trajectory: bool = False
+
 
 @dataclass
 class ROS2Config(RobotConfig):
@@ -101,7 +104,7 @@ class AnninAR4Config(ROS2Config):
 class SO101ROSConfig(ROS2Config):
     """Configuration for the ROS 2 version of SO101: https://github.com/Pavankv92/lerobot_ws."""
 
-    action_type: ActionType = ActionType.CARTESIAN_VELOCITY
+    action_type: ActionType = ActionType.JOINT_POSITION
 
     ros2_interface: ROS2InterfaceConfig = field(
         default_factory=lambda: ROS2InterfaceConfig(
@@ -112,5 +115,6 @@ class SO101ROSConfig(ROS2Config):
             max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
             gripper_open_position=1.74533,
             gripper_close_position=0.0,
+            gripper_use_trajectory=True,
         ),
     )

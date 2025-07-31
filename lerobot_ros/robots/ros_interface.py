@@ -26,6 +26,7 @@ from rclpy.node import Node
 from rclpy.publisher import Publisher
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from .config_ros import ActionType, ROS2InterfaceConfig
 from .moveit_servo import MoveIt2Servo
@@ -42,6 +43,7 @@ class ROS2Interface:
         self.robot_node: Node | None = None
         self.pos_cmd_pub: Publisher | None = None
         self.gripper_action_client: ActionClient | None = None
+        self.gripper_cmd_pub: Publisher | None = None
         self.executor: Executor | None = None
         self.moveit2_servo: MoveIt2Servo | None = None
         self.executor_thread: threading.Thread | None = None
@@ -63,13 +65,20 @@ class ROS2Interface:
                 frame_id=self.config.base_link,
                 callback_group=ReentrantCallbackGroup(),
             )
-        self.gripper_action_client = ActionClient(
-            self.robot_node,
-            GripperCommand,
-            "/gripper_controller/gripper_cmd",
-            callback_group=ReentrantCallbackGroup(),
-        )
-        self._goal_msg = GripperCommand.Goal()
+
+        if self.config.gripper_use_trajectory:
+            self.gripper_cmd_pub = self.robot_node.create_publisher(
+                JointTrajectory, "/gripper_controller/joint_trajectory", 10
+            )
+        else:
+            self.gripper_action_client = ActionClient(
+                self.robot_node,
+                GripperCommand,
+                "/gripper_controller/gripper_cmd",
+                callback_group=ReentrantCallbackGroup(),
+            )
+            self._goal_msg = GripperCommand.Goal()
+
         self.joint_state_sub = self.robot_node.create_subscription(
             JointState,
             "joint_states",
@@ -138,12 +147,8 @@ class ROS2Interface:
         Returns:
             bool: True if the command was sent successfully, False otherwise.
         """
-        if not self.gripper_action_client:
-            raise RuntimeError("ROS2Interface is not connected. You need to call `connect()`.")
-
-        if not self.gripper_action_client.wait_for_server(timeout_sec=1.0):
-            logger.error("Gripper action server not available")
-            return False
+        if not self.robot_node:
+            raise DeviceNotConnectedError("ROS2Interface is not connected. You need to call `connect()`.")
 
         if unnormalize:
             # Map normalized position (0=open, 1=closed) to actual gripper joint position
@@ -153,18 +158,36 @@ class ROS2Interface:
         else:
             gripper_goal = position
 
-        self._goal_msg.command.position = float(gripper_goal)
-        if not (resp := self.gripper_action_client.send_goal(self._goal_msg)):
-            logger.error("Failed to send gripper command")
-            return False
-        result = resp.result  # type: ignore  # ROS2 types available at runtime
-        if result.reached_goal:
+        if self.config.gripper_use_trajectory:
+            if self.gripper_cmd_pub is None:
+                raise DeviceNotConnectedError("Gripper command publisher is not initialized.")
+            msg = JointTrajectory()
+            msg.joint_names = [self.config.gripper_joint_name]
+            point = JointTrajectoryPoint()
+            point.positions = [float(gripper_goal)]
+            msg.points = [point]
+            self.gripper_cmd_pub.publish(msg)
             return True
-        logger.error(
-            f"Gripper did not reach goal. stalled: {result.stalled}, "
-            f"effort: {result.effort}, position: {result.position}"
-        )
-        return False
+        else:
+            if not self.gripper_action_client:
+                raise DeviceNotConnectedError("Gripper action client is not initialized.")
+
+            if not self.gripper_action_client.wait_for_server(timeout_sec=1.0):
+                logger.error("Gripper action server not available")
+                return False
+
+            self._goal_msg.command.position = float(gripper_goal)
+            if not (resp := self.gripper_action_client.send_goal(self._goal_msg)):
+                logger.error("Failed to send gripper command")
+                return False
+            result = resp.result  # type: ignore  # ROS2 types available at runtime
+            if result.reached_goal:
+                return True
+            logger.error(
+                f"Gripper did not reach goal. stalled: {result.stalled}, "
+                f"effort: {result.effort}, position: {result.position}"
+            )
+            return False
 
     @property
     def joint_state(self) -> dict[str, dict[str, float]] | None:
@@ -202,6 +225,9 @@ class ROS2Interface:
         if self.gripper_action_client:
             self.gripper_action_client.destroy()
             self.gripper_action_client = None
+        if self.gripper_cmd_pub:
+            self.gripper_cmd_pub.destroy()
+            self.gripper_cmd_pub = None
         if self.robot_node:
             self.robot_node.destroy_node()
             self.robot_node = None

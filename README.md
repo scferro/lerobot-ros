@@ -9,7 +9,6 @@ A gamepad teleoperator for 6-DoF end-effector control is also provided.
 - Joint position (via ros2_control)
 - Joint velocity (via ros2_control)
 - End-effector velocity (via MoveIt 2)
-- 🚧 End-effector position (via MoveIt 2)
 
 **Supported Lerobot scripts:** teleoperate, record, replay
 
