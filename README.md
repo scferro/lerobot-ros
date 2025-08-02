@@ -1,14 +1,19 @@
 # LeRobot ROS
 
-This repository provides a generic ROS 2 interface for the [LeRobot](https://github.com/huggingface/lerobot) framework. It acts as a lightweight wrapper to connect any `ros2_control` or `MoveIt2` compatible robot with the `lerobot` ecosystem. This enables `lerobot` to be used on a wide variety of real-world robots running on ROS 2.
+This repository provides a generic ROS 2 interface for the [LeRobot](https://github.com/huggingface/lerobot) framework. It acts as a lightweight wrapper to connect any [ros2_control](https://control.ros.org/rolling/index.html) or [MoveIt](https://moveit.ai/) compatible robot with the `lerobot` ecosystem. This enables `lerobot` to be used on a wide variety of real-world robots running on ROS 2.
 
-A gamepad teleoperator for 6-DoF end-effector control is also provided.
+A gamepad teleoperator for 6-DoF end-effector control and a keyboard teleoperator for joint position control is also provided.
 
 **Supported control modes:**
 
-- Joint position (via ros2_control)
-- Joint velocity (via ros2_control)
-- End-effector velocity (via MoveIt 2)
+- Joint position with ros2_control
+  - Using [joint_trajectory_controller](https://control.ros.org/rolling/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html)
+  - Using [position_controllers](https://control.ros.org/rolling/doc/ros2_controllers/position_controllers/doc/userdoc.html)
+- End-effector velocity with MoveIt 2
+  - Using [Moveit Servo](https://moveit.picknik.ai/main/doc/examples/realtime_servo/realtime_servo_tutorial.html)
+- Gripper Controller with ros2_control
+  - Using [joint_trajectory_controller](https://control.ros.org/rolling/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html)
+  - Using [Gripper Action Controller](https://control.ros.org/jazzy/doc/ros2_controllers/gripper_controllers/doc/userdoc.html)
 
 **Supported Lerobot scripts:** teleoperate, record, replay
 
@@ -97,7 +102,7 @@ class MyRobotConfig(ROS2Config):
 
 ## Getting Started
 
-The `scripts` directory contains examples for teleoperation, recording, and replaying trajectories.
+A good way to get started is to teleoperate your robot.
 
 ### Step 1: Launch Your Robot
 
@@ -131,7 +136,7 @@ python scripts/teleoperate.py \
 
 Once you have teleoperation working, you can use all standard LeRobot features as usual:
 
-- Incorporate cameras and other sensors
-- Use `scripts/record.py` to collect demonstration datasets
-- Use `scripts/replay.py` to test recorded trajectories
-- Train policies on your robot's data
+- Incorporate cameras and other sensors using the LeRobot repo
+- Use [record.py](.scripts/record.py) from this repo to collect demonstration datasets
+- Use [replay.py](.scripts/replay.py) from this repo to test recorded trajectories
+- Train policies on your robot's data using the LeRobot repo
