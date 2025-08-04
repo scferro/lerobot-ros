@@ -34,8 +34,6 @@ class GamepadController6DOF(InputController):
         print("  LB/RB bumpers: Angular Z rotation (yaw)")
         print("  LT/RT triggers: Linear Z movement (up/down)")
         print("  A/X button: Gripper control (open by default, close when pressed)")
-        print("  B/Circle button: Exit")
-        print("  Y/Triangle button: End episode with SUCCESS")
 
     def stop(self):
         """Clean up pygame resources."""

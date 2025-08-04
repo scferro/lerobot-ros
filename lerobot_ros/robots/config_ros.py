@@ -21,8 +21,12 @@ from lerobot.robots import RobotConfig
 class ActionType(Enum):
     CARTESIAN_VELOCITY = "cartesian_velocity"
     JOINT_POSITION = "joint_position"
-    # For future extension:
-    JOINT_VELOCITY = "joint_velocity"
+    JOINT_TRAJECTORY = "joint_trajectory"
+
+
+class GripperActionType(Enum):
+    TRAJECTORY = "trajectory"  # Use JointTrajectoryController for gripper
+    ACTION = "action"  # Use GripperActionClient
 
 
 @dataclass
@@ -47,7 +51,7 @@ class ROS2InterfaceConfig:
     base_link: str = "base_link"
 
     # Only applicable if velocity control is used.
-    max_linear_velocity: float = 0.05
+    max_linear_velocity: float = 0.10
     max_angular_velocity: float = 0.25  # rad/s
 
     # Only applicable if position control is used.
@@ -57,11 +61,7 @@ class ROS2InterfaceConfig:
     gripper_open_position: float = 0.0
     gripper_close_position: float = 1.0
 
-    # Gripper controller type
-    gripper_use_trajectory: bool = False
-
-    # Arm controller type
-    arm_use_trajectory: bool = False
+    gripper_action_type: GripperActionType = GripperActionType.TRAJECTORY
 
 
 @dataclass
@@ -98,6 +98,7 @@ class AnninAR4Config(ROS2Config):
             max_joint_positions=[2.9671, 1.5708, 0.9076, 2.8798, 1.8326, 2.7053],
             gripper_open_position=0.014,
             gripper_close_position=0.0,
+            gripper_action_type=GripperActionType.ACTION,
         ),
     )
 
@@ -107,7 +108,7 @@ class AnninAR4Config(ROS2Config):
 class SO101ROSConfig(ROS2Config):
     """Configuration for the ROS 2 version of SO101: https://github.com/Pavankv92/lerobot_ws."""
 
-    action_type: ActionType = ActionType.JOINT_POSITION
+    action_type: ActionType = ActionType.JOINT_TRAJECTORY
 
     ros2_interface: ROS2InterfaceConfig = field(
         default_factory=lambda: ROS2InterfaceConfig(
@@ -118,7 +119,5 @@ class SO101ROSConfig(ROS2Config):
             max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
             gripper_open_position=1.74533,
             gripper_close_position=0.0,
-            gripper_use_trajectory=True,
-            arm_use_trajectory=True,
         ),
     )

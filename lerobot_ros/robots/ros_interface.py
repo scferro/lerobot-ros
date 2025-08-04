@@ -28,7 +28,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
-from .config_ros import ActionType, ROS2InterfaceConfig
+from .config_ros import ActionType, GripperActionType, ROS2InterfaceConfig
 from .moveit_servo import MoveIt2Servo
 
 logger = logging.getLogger(__name__)
@@ -38,16 +38,18 @@ class ROS2Interface:
     """Class to interface with a MoveIt2 manipulator.
 
     This class supports both JointGroupPositionController and JointTrajectoryController
-    for arm control, depending on the configuration:
+    from ros2_control for arm control, depending on the configuration:
 
-    - JointGroupPositionController (arm_use_trajectory=False):
-      Publishes Float64MultiArray messages to 'position_controller/commands'
+    - ActionType.JOINT_POSITION:
+      Uses JointGroupPositionController.
+      Publishes Float64MultiArray messages to '/position_controller/commands'
 
-    - JointTrajectoryController (arm_use_trajectory=True):
+    - ActionType.JOINT_TRAJECTORY:
+      Uses JointTrajectoryController.
       Publishes JointTrajectory messages to '/arm_controller/joint_trajectory'
 
     The gripper control also supports both trajectory and action-based control
-    via the gripper_use_trajectory configuration option.
+    via the gripper_action_type configuration option.
     """
 
     def __init__(self, config: ROS2InterfaceConfig, action_type: ActionType):
@@ -57,7 +59,7 @@ class ROS2Interface:
         self.pos_cmd_pub: Publisher | None = None
         self.traj_cmd_pub: Publisher | None = None
         self.gripper_action_client: ActionClient | None = None
-        self.gripper_cmd_pub: Publisher | None = None
+        self.gripper_traj_pub: Publisher | None = None
         self.executor: Executor | None = None
         self.moveit2_servo: MoveIt2Servo | None = None
         self.executor_thread: threading.Thread | None = None
@@ -70,14 +72,13 @@ class ROS2Interface:
 
         self.robot_node = Node("moveit2_interface_node", namespace=self.config.namespace)
         if self.action_type == ActionType.JOINT_POSITION:
-            if self.config.arm_use_trajectory:
-                self.traj_cmd_pub = self.robot_node.create_publisher(
-                    JointTrajectory, "/arm_controller/joint_trajectory", 10
-                )
-            else:
-                self.pos_cmd_pub = self.robot_node.create_publisher(
-                    Float64MultiArray, "position_controller/commands", 10
-                )
+            self.pos_cmd_pub = self.robot_node.create_publisher(
+                Float64MultiArray, "/position_controller/commands", 10
+            )
+        elif self.action_type == ActionType.JOINT_TRAJECTORY:
+            self.traj_cmd_pub = self.robot_node.create_publisher(
+                JointTrajectory, "/arm_controller/joint_trajectory", 10
+            )
         elif self.action_type == ActionType.CARTESIAN_VELOCITY:
             self.moveit2_servo = MoveIt2Servo(
                 node=self.robot_node,
@@ -85,8 +86,8 @@ class ROS2Interface:
                 callback_group=ReentrantCallbackGroup(),
             )
 
-        if self.config.gripper_use_trajectory:
-            self.gripper_cmd_pub = self.robot_node.create_publisher(
+        if self.config.gripper_action_type == GripperActionType.TRAJECTORY:
+            self.gripper_traj_pub = self.robot_node.create_publisher(
                 JointTrajectory, "/gripper_controller/joint_trajectory", 10
             )
         else:
@@ -144,7 +145,7 @@ class ROS2Interface:
                 f"Expected {len(self.config.arm_joint_names)} joint positions, but got {len(joint_positions)}."
             )
 
-        if self.config.arm_use_trajectory:
+        if self.action_type == ActionType.JOINT_TRAJECTORY:
             if self.traj_cmd_pub is None:
                 raise DeviceNotConnectedError("Trajectory command publisher is not initialized.")
             msg = JointTrajectory()
@@ -188,15 +189,15 @@ class ROS2Interface:
         else:
             gripper_goal = position
 
-        if self.config.gripper_use_trajectory:
-            if self.gripper_cmd_pub is None:
+        if self.config.gripper_action_type == GripperActionType.TRAJECTORY:
+            if self.gripper_traj_pub is None:
                 raise DeviceNotConnectedError("Gripper command publisher is not initialized.")
             msg = JointTrajectory()
             msg.joint_names = [self.config.gripper_joint_name]
             point = JointTrajectoryPoint()
             point.positions = [float(gripper_goal)]
             msg.points = [point]
-            self.gripper_cmd_pub.publish(msg)
+            self.gripper_traj_pub.publish(msg)
             return True
         else:
             if not self.gripper_action_client:
@@ -261,9 +262,9 @@ class ROS2Interface:
         if self.gripper_action_client:
             self.gripper_action_client.destroy()
             self.gripper_action_client = None
-        if self.gripper_cmd_pub:
-            self.gripper_cmd_pub.destroy()
-            self.gripper_cmd_pub = None
+        if self.gripper_traj_pub:
+            self.gripper_traj_pub.destroy()
+            self.gripper_traj_pub = None
         if self.robot_node:
             self.robot_node.destroy_node()
             self.robot_node = None
