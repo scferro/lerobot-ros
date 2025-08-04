@@ -1,6 +1,6 @@
 # LeRobot ROS
 
-This repository provides a generic ROS 2 interface for the [LeRobot](https://github.com/huggingface/lerobot) framework. It acts as a lightweight wrapper to connect any [ros2_control](https://control.ros.org/rolling/index.html) or [MoveIt](https://moveit.ai/) compatible robot arm with the `lerobot` ecosystem. This enables `lerobot` to be used on a wide variety of real-world robot arms running on ROS 2.
+This repository provides a generic ROS 2 interface for the [LeRobot](https://github.com/huggingface/lerobot) framework. It acts as a lightweight wrapper to connect any [ros2_control](https://control.ros.org/rolling/index.html) or [MoveIt](https://moveit.ai/) compatible robot arm with the LeRobot ecosystem.
 
 A gamepad teleoperator for 6-DoF end-effector control and a keyboard teleoperator for joint position control is also provided.
 
