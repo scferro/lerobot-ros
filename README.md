@@ -11,7 +11,7 @@ A gamepad teleoperator for 6-DoF end-effector control and a keyboard teleoperato
   - Using [position_controllers](https://control.ros.org/rolling/doc/ros2_controllers/position_controllers/doc/userdoc.html)
 - End-effector velocity with MoveIt 2
   - Using [Moveit Servo](https://moveit.picknik.ai/main/doc/examples/realtime_servo/realtime_servo_tutorial.html)
-- Gripper Controller with ros2_control
+- Gripper control with ros2_control
   - Using [joint_trajectory_controller](https://control.ros.org/rolling/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html)
   - Using [Gripper Action Controller](https://control.ros.org/jazzy/doc/ros2_controllers/gripper_controllers/doc/userdoc.html)
 

@@ -64,7 +64,7 @@ class ROS2Robot(Robot):
                 "angular_z.vel": float,
                 "gripper.pos": float,
             }
-        elif self.config.action_type == ActionType.JOINT_POSITION:
+        elif self.config.action_type in (ActionType.JOINT_POSITION, ActionType.JOINT_TRAJECTORY):
             return {f"{joint}.pos": float for joint in self.config.ros2_interface.arm_joint_names} | {
                 "gripper.pos": float
             }
@@ -153,7 +153,7 @@ class ROS2Robot(Robot):
                 action["angular_z.vel"],
             )
             self.ros2_interface.servo(linear=linear_vel, angular=angular_vel)
-        elif self.config.action_type == ActionType.JOINT_POSITION:
+        elif self.config.action_type in (ActionType.JOINT_POSITION, ActionType.JOINT_TRAJECTORY):
             if self.config.max_relative_target is not None:
                 goal_present_pos = {}
                 joint_state = self.ros2_interface.joint_state
