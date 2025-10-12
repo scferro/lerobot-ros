@@ -18,7 +18,7 @@ import time
 
 import rclpy
 from control_msgs.action import GripperCommand
-from lerobot.errors import DeviceNotConnectedError
+from lerobot.utils.errors import DeviceNotConnectedError
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import Executor, SingleThreadedExecutor
@@ -28,7 +28,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
-from .config_ros import ActionType, GripperActionType, ROS2InterfaceConfig
+from .config import ActionType, GripperActionType, ROS2InterfaceConfig
 from .moveit_servo import MoveIt2Servo
 
 logger = logging.getLogger(__name__)

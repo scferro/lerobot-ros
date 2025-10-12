@@ -16,7 +16,7 @@
 homepage = "https://github.com/ycheng517/lerobot-ros"
 
 [project]
-name = "lerobot-ros"
+name = "lerobot-robot-ros"
 version = "0.1.0"
 description = "🤗 A lightweight ROS 2 wrapper for lerobot"
 authors = [
@@ -34,7 +34,6 @@ classifiers = [
     "Topic :: Software Development :: Build Tools",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "lerobot",
