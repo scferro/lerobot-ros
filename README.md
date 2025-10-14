@@ -74,15 +74,7 @@ lerobot-teleoperate \
   --display_data=true
 ```
 
-### Next Steps
-
-Once you have teleoperation working, you can use all standard LeRobot features as usual:
-
-- Try out gamepad teleoperation using the `gamepad_6dof` teleoperator
-- Incorporate cameras and other sensors using the LeRobot repo
-- Use [record.py](./scripts/record.py) from this repo to collect demonstration datasets
-- Use [replay.py](./scripts/replay.py) from this repo to test recorded trajectories
-- Train policies on your robot's data using the LeRobot repo
+Once you have teleoperation working, you can use all standard LeRobot features as usual.
 
 ## Robot Integration Guide
 
