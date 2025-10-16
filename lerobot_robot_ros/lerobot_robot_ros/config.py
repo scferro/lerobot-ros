@@ -112,8 +112,8 @@ class SO101ROSConfig(ROS2Config):
 
     ros2_interface: ROS2InterfaceConfig = field(
         default_factory=lambda: ROS2InterfaceConfig(
-            arm_joint_names=["1", "2", "3", "4", "5"],
-            gripper_joint_name="6",
+            arm_joint_names=["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"],
+            gripper_joint_name="gripper",
             base_link="base",
             min_joint_positions=[-1.91986, -1.74533, -1.74533, -1.65806, -2.79253],
             max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
