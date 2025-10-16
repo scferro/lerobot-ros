@@ -183,9 +183,187 @@ class ROS2Robot(Robot):
         logger.info(f"{self} disconnected.")
 
 
+class BimanualROS2Robot(Robot):
+    """
+    Base class for bimanual ROS2 robots.
+
+    This class manages two ROS2Interface instances (one for each arm) and adds
+    left_/right_ prefixes to all observations and actions.
+    """
+
+    config_class = None  # Set by subclass config
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+
+        # Create ROS2 interfaces for left and right arms
+        self.left_interface = ROS2Interface(config.left_arm_interface, config.action_type)
+        self.right_interface = ROS2Interface(config.right_arm_interface, config.action_type)
+
+        # Shared cameras
+        self.cameras = make_cameras_from_configs(config.cameras)
+
+    @property
+    def _cameras_ft(self) -> dict[str, tuple]:
+        return {
+            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras
+        }
+
+    @cached_property
+    def observation_features(self) -> dict[str, type | tuple]:
+        """Observation features for both arms with left_/right_ prefixes."""
+        # Left arm joints
+        left_joint_names = self.config.left_arm_interface.arm_joint_names.copy()
+        if self.config.left_arm_interface.gripper_joint_name:
+            left_joint_names.append(self.config.left_arm_interface.gripper_joint_name)
+        left_motor_ft = {f"left_{motor}.pos": float for motor in left_joint_names}
+
+        # Right arm joints
+        right_joint_names = self.config.right_arm_interface.arm_joint_names.copy()
+        if self.config.right_arm_interface.gripper_joint_name:
+            right_joint_names.append(self.config.right_arm_interface.gripper_joint_name)
+        right_motor_ft = {f"right_{motor}.pos": float for motor in right_joint_names}
+
+        return {**left_motor_ft, **right_motor_ft, **self._cameras_ft}
+
+    @cached_property
+    def action_features(self) -> dict[str, type]:
+        """Action features for both arms with left_/right_ prefixes."""
+        # Left arm actions
+        left_action_ft = {
+            f"left_{joint}.pos": float for joint in self.config.left_arm_interface.arm_joint_names
+        } | {"left_gripper.pos": float}
+
+        # Right arm actions
+        right_action_ft = {
+            f"right_{joint}.pos": float for joint in self.config.right_arm_interface.arm_joint_names
+        } | {"right_gripper.pos": float}
+
+        return {**left_action_ft, **right_action_ft}
+
+    @property
+    def is_connected(self) -> bool:
+        return (
+            self.left_interface.is_connected
+            and self.right_interface.is_connected
+            and all(cam.is_connected for cam in self.cameras.values())
+        )
+
+    def connect(self, calibrate: bool = True) -> None:
+        if self.is_connected:
+            raise DeviceAlreadyConnectedError(f"{self} already connected")
+
+        for cam in self.cameras.values():
+            cam.connect()
+
+        self.left_interface.connect()
+        self.right_interface.connect()
+
+        logger.info(f"{self} connected.")
+
+    @property
+    def is_calibrated(self) -> bool:
+        return True
+
+    def calibrate(self) -> None:
+        pass
+
+    def configure(self) -> None:
+        pass
+
+    def get_observation(self) -> dict[str, Any]:
+        if not self.is_connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        obs_dict: dict[str, Any] = {}
+
+        # Get left arm observations
+        left_joint_state = self.left_interface.joint_state
+        if left_joint_state is None:
+            raise ValueError("Left arm joint state is not available yet.")
+        obs_dict.update({f"left_{joint}.pos": pos for joint, pos in left_joint_state["position"].items()})
+
+        # Get right arm observations
+        right_joint_state = self.right_interface.joint_state
+        if right_joint_state is None:
+            raise ValueError("Right arm joint state is not available yet.")
+        obs_dict.update({f"right_{joint}.pos": pos for joint, pos in right_joint_state["position"].items()})
+
+        # Capture images from cameras
+        for cam_key, cam in self.cameras.items():
+            start = time.perf_counter()
+            try:
+                obs_dict[cam_key] = cam.async_read(timeout_ms=300)
+            except Exception as e:
+                logger.error(f"Failed to read camera {cam_key}: {e}")
+                obs_dict[cam_key] = None
+            dt_ms = (time.perf_counter() - start) * 1e3
+            logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
+
+        return obs_dict
+
+    def send_action(self, action: dict[str, float]) -> dict[str, float]:
+        """Send actions to both arms."""
+        if not self.is_connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        # Extract left arm actions (remove "left_" prefix)
+        left_action = {}
+        for key, value in action.items():
+            if key.startswith("left_"):
+                unprefixed_key = key.removeprefix("left_")
+                left_action[unprefixed_key] = value
+
+        # Extract right arm actions (remove "right_" prefix)
+        right_action = {}
+        for key, value in action.items():
+            if key.startswith("right_"):
+                unprefixed_key = key.removeprefix("right_")
+                right_action[unprefixed_key] = value
+
+        # Send left arm commands
+        if self.config.action_type in (ActionType.JOINT_POSITION, ActionType.JOINT_TRAJECTORY):
+            left_joint_positions = [
+                left_action[joint + ".pos"] for joint in self.config.left_arm_interface.arm_joint_names
+            ]
+            self.left_interface.send_joint_position_command(left_joint_positions)
+
+        left_gripper_pos = left_action.get("gripper.pos", 0.0)
+        self.left_interface.send_gripper_command(left_gripper_pos)
+
+        # Send right arm commands
+        if self.config.action_type in (ActionType.JOINT_POSITION, ActionType.JOINT_TRAJECTORY):
+            right_joint_positions = [
+                right_action[joint + ".pos"] for joint in self.config.right_arm_interface.arm_joint_names
+            ]
+            self.right_interface.send_joint_position_command(right_joint_positions)
+
+        right_gripper_pos = right_action.get("gripper.pos", 0.0)
+        self.right_interface.send_gripper_command(right_gripper_pos)
+
+        return action
+
+    def disconnect(self):
+        if not self.is_connected:
+            raise DeviceNotConnectedError(f"{self} is not connected.")
+
+        for cam in self.cameras.values():
+            cam.disconnect()
+
+        self.left_interface.disconnect()
+        self.right_interface.disconnect()
+
+        logger.info(f"{self} disconnected.")
+
+
 class SO101ROS(ROS2Robot):
     pass
 
 
 class AnninAR4(ROS2Robot):
+    pass
+
+
+class BiSO101ROS(BimanualROS2Robot):
     pass
