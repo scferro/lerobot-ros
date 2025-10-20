@@ -70,14 +70,18 @@ class ROS2Interface:
         if not rclpy.ok():
             rclpy.init()
 
-        self.robot_node = Node("moveit2_interface_node", namespace=self.config.namespace)
+        # Use custom node name if provided, otherwise use default
+        node_name = self.config.node_name or "moveit2_interface_node"
+        self.robot_node = Node(node_name, namespace=self.config.namespace)
         if self.action_type == ActionType.JOINT_POSITION:
             self.pos_cmd_pub = self.robot_node.create_publisher(
                 Float64MultiArray, "/position_controller/commands", 10
             )
         elif self.action_type == ActionType.JOINT_TRAJECTORY:
+            # Use custom topic if provided, otherwise use default
+            arm_topic = self.config.arm_controller_topic or "/arm_controller/joint_trajectory"
             self.traj_cmd_pub = self.robot_node.create_publisher(
-                JointTrajectory, "/arm_controller/joint_trajectory", 10
+                JointTrajectory, arm_topic, 10
             )
         elif self.action_type == ActionType.CARTESIAN_VELOCITY:
             self.moveit2_servo = MoveIt2Servo(
@@ -86,15 +90,19 @@ class ROS2Interface:
                 callback_group=ReentrantCallbackGroup(),
             )
 
+        # Use custom gripper topic if provided, otherwise use default
+        gripper_topic = self.config.gripper_controller_topic or "/gripper_controller/joint_trajectory"
+        gripper_action_topic = self.config.gripper_controller_topic or "/gripper_controller/gripper_cmd"
+
         if self.config.gripper_action_type == GripperActionType.TRAJECTORY:
             self.gripper_traj_pub = self.robot_node.create_publisher(
-                JointTrajectory, "/gripper_controller/joint_trajectory", 10
+                JointTrajectory, gripper_topic, 10
             )
         else:
             self.gripper_action_client = ActionClient(
                 self.robot_node,
                 GripperCommand,
-                "/gripper_controller/gripper_cmd",
+                gripper_action_topic,
                 callback_group=ReentrantCallbackGroup(),
             )
             self._goal_msg = GripperCommand.Goal()

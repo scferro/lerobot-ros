@@ -63,6 +63,13 @@ class ROS2InterfaceConfig:
 
     gripper_action_type: GripperActionType = GripperActionType.TRAJECTORY
 
+    # Optional custom controller topics (if None, defaults will be used)
+    arm_controller_topic: str | None = None
+    gripper_controller_topic: str | None = None
+
+    # Optional custom ROS2 node name (if None, default will be used)
+    node_name: str | None = None
+
 
 @dataclass
 class ROS2Config(RobotConfig):
@@ -126,9 +133,7 @@ class SO101ROSConfig(ROS2Config):
 @RobotConfig.register_subclass("bi_so101_ros")
 @dataclass
 class BiSO101ROSConfig(RobotConfig):
-    """Configuration for bimanual SO-101 simulation robot."""
-
-    action_type: ActionType = ActionType.JOINT_TRAJECTORY
+    """Configuration for bimanual SO-101 ROS2 simulation robot."""
 
     # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
     max_relative_target: int | None = None
@@ -136,30 +141,31 @@ class BiSO101ROSConfig(RobotConfig):
     # cameras (shared between both arms)
     cameras: dict[str, CameraConfig] = field(default_factory=dict)
 
-    # Left arm ROS2 interface configuration
-    left_arm_interface: ROS2InterfaceConfig = field(
-        default_factory=lambda: ROS2InterfaceConfig(
-            namespace="left_arm",
-            arm_joint_names=["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"],
-            gripper_joint_name="gripper",
-            base_link="left_base",
-            min_joint_positions=[-1.91986, -1.74533, -1.74533, -1.65806, -2.79253],
-            max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
-            gripper_open_position=1.74533,
-            gripper_close_position=0.0,
-        )
+    # Joint names (without prefix - prefixes added at runtime)
+    left_arm_joint_names: list[str] = field(
+        default_factory=lambda: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"]
+    )
+    right_arm_joint_names: list[str] = field(
+        default_factory=lambda: ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"]
+    )
+    left_gripper_joint_name: str = "gripper"
+    right_gripper_joint_name: str = "gripper"
+
+    # Joint limits (radians)
+    min_joint_positions: list[float] = field(
+        default_factory=lambda: [-1.91986, -1.74533, -1.74533, -1.65806, -2.79253]
+    )
+    max_joint_positions: list[float] = field(
+        default_factory=lambda: [1.91986, 1.74533, 1.5708, 1.65806, 2.79253]
     )
 
-    # Right arm ROS2 interface configuration
-    right_arm_interface: ROS2InterfaceConfig = field(
-        default_factory=lambda: ROS2InterfaceConfig(
-            namespace="right_arm",
-            arm_joint_names=["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll"],
-            gripper_joint_name="gripper",
-            base_link="right_base",
-            min_joint_positions=[-1.91986, -1.74533, -1.74533, -1.65806, -2.79253],
-            max_joint_positions=[1.91986, 1.74533, 1.5708, 1.65806, 2.79253],
-            gripper_open_position=1.74533,
-            gripper_close_position=0.0,
-        )
-    )
+    # Gripper limits
+    gripper_open_position: float = 1.74533
+    gripper_close_position: float = 0.0
+
+    # ROS2 topic configuration
+    joint_states_topic: str = "/joint_states"  # Shared topic for both arms
+    left_arm_controller_topic: str = "/left_arm_controller/joint_trajectory"
+    left_gripper_controller_topic: str = "/left_gripper_controller/joint_trajectory"
+    right_arm_controller_topic: str = "/right_arm_controller/joint_trajectory"
+    right_gripper_controller_topic: str = "/right_gripper_controller/joint_trajectory"
