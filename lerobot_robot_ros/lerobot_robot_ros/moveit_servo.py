@@ -15,11 +15,16 @@
 import logging
 
 from geometry_msgs.msg import TwistStamped
-from moveit_msgs.srv import ServoCommandType
 from rclpy import qos
 from rclpy.callback_groups import CallbackGroup
 from rclpy.node import Node
 from std_srvs.srv import SetBool
+
+try:
+    from moveit_msgs.srv import ServoCommandType
+except ImportError:
+    # ServoCommandType not available in some ROS2 distributions (e.g., Humble)
+    ServoCommandType = None
 
 logger = logging.getLogger(__name__)
 
@@ -52,31 +57,37 @@ class MoveIt2Servo:
         self._pause_srv = node.create_client(
             SetBool, "/servo_node/pause_servo", callback_group=callback_group
         )
-        self._cmd_type_srv = node.create_client(
-            ServoCommandType, "/servo_node/switch_command_type", callback_group=callback_group
-        )
+        if ServoCommandType is not None:
+            self._cmd_type_srv = node.create_client(
+                ServoCommandType, "/servo_node/switch_command_type", callback_group=callback_group
+            )
+            self._twist_type_req = ServoCommandType.Request(command_type=ServoCommandType.Request.TWIST)
+        else:
+            self._cmd_type_srv = None
+            self._twist_type_req = None
         self._twist_msg = TwistStamped()
         self._enable_req = SetBool.Request(data=False)
         self._disable_req = SetBool.Request(data=True)
-        self._twist_type_req = ServoCommandType.Request(command_type=ServoCommandType.Request.TWIST)
 
     def enable(self, wait_for_server_timeout_sec=1.0) -> bool:
         if not self._pause_srv.wait_for_service(timeout_sec=wait_for_server_timeout_sec):
             logger.warning("Pause service not available.")
             return False
-        if not self._cmd_type_srv.wait_for_service(timeout_sec=wait_for_server_timeout_sec):
-            logger.warning("Command type service not available.")
-            return False
+        if self._cmd_type_srv is not None:
+            if not self._cmd_type_srv.wait_for_service(timeout_sec=wait_for_server_timeout_sec):
+                logger.warning("Command type service not available.")
+                return False
         result = self._pause_srv.call(self._enable_req)
         if not result or not result.success:
             logger.error(f"Enable failed: {getattr(result, 'message', '')}")
             self._enabled = False
             return False
-        cmd_result = self._cmd_type_srv.call(self._twist_type_req)
-        if not cmd_result or not cmd_result.success:
-            logger.error("Switch to TWIST command type failed.")
-            self._enabled = False
-            return False
+        if self._cmd_type_srv is not None:
+            cmd_result = self._cmd_type_srv.call(self._twist_type_req)
+            if not cmd_result or not cmd_result.success:
+                logger.error("Switch to TWIST command type failed.")
+                self._enabled = False
+                return False
         logger.info("MoveIt Servo enabled.")
         self._enabled = True
         return True
